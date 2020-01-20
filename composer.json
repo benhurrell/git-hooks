@@ -1,0 +1,6 @@
+{
+	"name": "nebsites/git-hooks",
+	"require": {
+		"php": "^7.4"
+	}
+}
