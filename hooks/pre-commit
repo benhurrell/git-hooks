@@ -59,7 +59,9 @@ foreach ($files as $file) {
 
 	exec(
 		$nebsites_configuration->command
-		. ' phpstan analyse '
+		. ' '
+		. $phpstan_path
+		. ' analyse '
 		. escapeshellarg($file),
 		$output,
 		$return
