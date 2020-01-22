@@ -1,10 +1,7 @@
 #!/usr/bin/php
 <?php
 
-$nebsites_path =
-	__DIR__
-	. DIRECTORY_SEPARATOR
-	. 'nebsites.json';
+$nebsites_path = 'nebsites.json';
 	
 $nebsites_configuration = new class {};
 
