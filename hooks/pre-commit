@@ -1,6 +1,21 @@
 #!/usr/bin/php
 <?php
 
+$nebsites_path =
+	__DIR__
+	. DIRECTORY_SEPARATOR
+	. 'nebsites.json';
+	
+$nebsites_configuration = new class {};
+
+if (
+	is_file($nebsites_path)
+	&& is_readable($nebsites_path)
+) {
+
+	$nebsites_configuration = json_decode(file_get_contents($nebsites_path));
+}
+
 $output = [];
 $return = 0;
 exec('git rev-parse --verify HEAD 2> /dev/null', $output, $return);
@@ -22,13 +37,21 @@ $output = [];
 $return = 0;
 $returns = [];
 
+$phpstan_path =
+	'vendor'
+	. DIRECTORY_SEPARATOR
+	. 'bin'
+	. DIRECTORY_SEPARATOR
+	. 'phpstan';
+//$run_phpstan = file_exists($phpstan_path);
+
 $phpUnitPath =
 	'vendor'
 	. DIRECTORY_SEPARATOR
 	. 'bin'
 	. DIRECTORY_SEPARATOR
 	. 'phpunit';
-$runPhpUnit = file_exists($phpUnitPath);
+//$runPhpUnit = file_exists($phpUnitPath);
 
 foreach ($files as $file) {
 
@@ -38,38 +61,39 @@ foreach ($files as $file) {
 	}
 
 	exec(
-		'phpstan analyse '
+		$nebsites_configuration->command
+		. ' phpstan analyse '
 		. escapeshellarg($file),
 		$output,
 		$return
 	);
 	
 	$returns[] = $return;
-
-	$phpUnitClassPath =
-		'tests'
-		. DIRECTORY_SEPARATOR
-		. pathinfo($file, PATHINFO_DIRNAME)
-		. DIRECTORY_SEPARATOR
-		. pathinfo($file, PATHINFO_FILENAME);
-	
-	if (
-		$runPhpUnit
-		&& file_exists($phpUnitClassPath)
-	) {
-		
-		exec(
-			$phpUnitPath
-			. ' '
-			. $phpUnitClassPath
-			. DIRECTORY_SEPARATOR
-			. '*',
-			$output,
-			$return
-		);
-
-		$returns[] = $return;
-	}
+// 
+// 	$phpUnitClassPath =
+// 		'tests'
+// 		. DIRECTORY_SEPARATOR
+// 		. pathinfo($file, PATHINFO_DIRNAME)
+// 		. DIRECTORY_SEPARATOR
+// 		. pathinfo($file, PATHINFO_FILENAME);
+// 	
+// 	if (
+// 		$runPhpUnit
+// 		&& file_exists($phpUnitClassPath)
+// 	) {
+// 		
+// 		exec(
+// 			$phpUnitPath
+// 			. ' '
+// 			. $phpUnitClassPath
+// 			. DIRECTORY_SEPARATOR
+// 			. '*',
+// 			$output,
+// 			$return
+// 		);
+// 
+// 		$returns[] = $return;
+// 	}
 }
 
 echo implode(PHP_EOL, $output);
