@@ -118,7 +118,7 @@ foreach ($files as $file) {
 		. DIRECTORY_SEPARATOR
 		. pathinfo($file, PATHINFO_FILENAME);
 
-		if (file_exists($phpUnitClassPath)) {
+		if (file_exists($test_path)) {
 			
 			$output[] = PHP_EOL;
 			$output[] = '# Executing PHPUnit';
@@ -126,7 +126,7 @@ foreach ($files as $file) {
 			exec(
 				$nebsites->phpunit
 				. ' '
-				. $phpUnitClassPath
+				. $test_path
 				. DIRECTORY_SEPARATOR
 				. '*',
 				$output,
