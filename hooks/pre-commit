@@ -47,24 +47,35 @@ $return = 0;
 exec('git rev-parse --verify HEAD 2> /dev/null', $output, $return);
 unset($output);
 
-$files = [];
+$diff_index = [];
 exec(
-	'git diff-index --cached --name-status '
+	'git diff-index --cached --full-index '
 	. (
 		$return === 0
 		? 'HEAD'
 		: '4b825dc642cb6eb9a060e54bf8d69288fbee4904'
-	)
-	. ' | egrep \'^(A|M)\' | awk \'{print $2;}\'',
-	$files
+	),
+	$diff_index
 );
 
 $output = [];
 $returns = [];
 
-foreach ($files as $file) {
+foreach ($diff_index as $item) {
 
 	$return = 0;
+	
+	list(
+		3 => $reference,
+		4 => $name_status
+	) = explode(' ', $item);
+	
+	if ($name_status[0] === 'D') {
+		
+		continue;
+	}
+	
+	$file = mb_substr($name_status, 2);
 
 	if (strtolower(pathinfo($file, PATHINFO_EXTENSION)) !== 'php') {
 		
@@ -81,8 +92,8 @@ foreach ($files as $file) {
 		$output[] = '# Executing PHP Lint';
 		
 		exec(
-			'cat '
-			. $file
+			'git cat-file -p '
+			. $reference
 			. ' | '
 			. $nebsites->phplint,
 			$output,
