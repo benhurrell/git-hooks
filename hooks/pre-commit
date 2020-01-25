@@ -1,74 +1,156 @@
 #!/usr/bin/php
 <?php
 
+$nebsites_path = 'nebsites.json';
+
+$nebsites = new class(
+	(
+		is_file($nebsites_path)
+		&& is_readable($nebsites_path)
+		? json_decode(file_get_contents($nebsites_path), true)
+		: []
+	)
+	?? []
+) {
+	public $phplint;
+	public $phpstan;
+	public $phpunit;
+	
+	
+	public function __construct(
+		array $configuration
+	) {
+		
+		$this->phplint =
+			$configuration['phplint']
+			?? 'php -l';
+		$this->phpstan =
+			$configuration['phpstan']
+			?? (
+				is_executable('./vendor/bin/phpstan')
+				? './vendor/bin/phpstan'
+				: null
+			)
+			?? 'phpstan';
+		$this->phpunit =
+			$configuration['phpunit']
+			?? (
+				is_executable('./vendor/bin/phpunit')
+				? './vendor/bin/phpunit'
+				: false
+			);
+	}
+};
+
 $output = [];
 $return = 0;
 exec('git rev-parse --verify HEAD 2> /dev/null', $output, $return);
 unset($output);
 
-$files = [];
+$diff_index = [];
 exec(
-	'git diff-index --cached --name-status '
+	'git diff-index --cached --full-index '
 	. (
 		$return === 0
 		? 'HEAD'
 		: '4b825dc642cb6eb9a060e54bf8d69288fbee4904'
-	)
-	. ' | egrep \'^(A|M)\' | awk \'{print $2;}\'',
-	$files
+	),
+	$diff_index
 );
 
 $output = [];
-$return = 0;
 $returns = [];
 
-$phpUnitPath =
-	'vendor'
-	. DIRECTORY_SEPARATOR
-	. 'bin'
-	. DIRECTORY_SEPARATOR
-	. 'phpunit';
-$runPhpUnit = file_exists($phpUnitPath);
+foreach ($diff_index as $item) {
 
-foreach ($files as $file) {
+	$return = 0;
+	
+	list(
+		3 => $reference,
+		4 => $name_status
+	) = explode(' ', $item);
+	
+	if ($name_status[0] === 'D') {
+		
+		continue;
+	}
+	
+	$file = mb_substr($name_status, 2);
 
 	if (strtolower(pathinfo($file, PATHINFO_EXTENSION)) !== 'php') {
 		
 		continue;
 	}
-
-	exec(
-		'phpstan analyse '
-		. escapeshellarg($file),
-		$output,
-		$return
-	);
 	
-	$returns[] = $return;
+	$output[] = PHP_EOL;
+	$output[] = '--------------------------------------------------------------------------------';
+	$output[] = $file;
+	
+	if ($nebsites->phplint !== false) {
+		
+		$output[] = '';
+		$output[] = '# Executing PHP Lint';
+		
+		exec(
+			'git cat-file -p '
+			. $reference
+			. ' | '
+			. $nebsites->phplint,
+			$output,
+			$return
+		);
+		
+		$returns[] = $return;
+		
+		if ($return !== 0) {
+			
+			continue;
+		}
+	}
 
-	$phpUnitClassPath =
+	if ($nebsites->phpstan !== false) {
+		
+		$output[] = '';
+		$output[] = '# Executing PHPStan';
+		
+		exec(
+			$nebsites->phpstan
+			. ' analyse '
+			. escapeshellarg($file),
+			$output,
+			$return
+		);
+		
+		$returns[] = $return;
+	}
+	
+	if ($nebsites->phpunit !== false) {
+		
+		$test_path =
 		'tests'
 		. DIRECTORY_SEPARATOR
 		. pathinfo($file, PATHINFO_DIRNAME)
 		. DIRECTORY_SEPARATOR
 		. pathinfo($file, PATHINFO_FILENAME);
-	
-	if (
-		$runPhpUnit
-		&& file_exists($phpUnitClassPath)
-	) {
-		
-		exec(
-			$phpUnitPath
-			. ' '
-			. $phpUnitClassPath
-			. DIRECTORY_SEPARATOR
-			. '*',
-			$output,
-			$return
-		);
 
-		$returns[] = $return;
+		if (file_exists($test_path)) {
+			
+			$output[] = '';
+			$output[] = '# Executing PHPUnit';
+			$output[] = '## Running tests in ' . $test_path;
+			
+			exec(
+				$nebsites->phpunit
+				. ' '
+				. $test_path
+				. DIRECTORY_SEPARATOR
+				. '*',
+				$output,
+				$return
+			);
+	
+			$returns[] = $return;
+		}
 	}
 }
 
