@@ -2,16 +2,45 @@
 <?php
 
 $nebsites_path = 'nebsites.json';
-	
-$nebsites_configuration = new class {};
 
-if (
-	is_file($nebsites_path)
-	&& is_readable($nebsites_path)
+$nebsites = new class(
+	(
+		is_file($nebsites_path)
+		&& is_readable($nebsites_path)
+		? json_decode(file_get_contents($nebsites_path), true)
+		: []
+	)
+	?? []
 ) {
-
-	$nebsites_configuration = json_decode(file_get_contents($nebsites_path));
-}
+	public $phplint;
+	public $phpstan;
+	public $phpunit;
+	
+	
+	public function __construct(
+		array $configuration
+	) {
+		
+		$this->phplint =
+			$configuration['phplint']
+			?? 'php -l';
+		$this->phpstan =
+			$configuration['phpstan']
+			?? (
+				is_executable('./vendor/bin/phpstan')
+				? './vendor/bin/phpstan'
+				: null
+			)
+			?? 'phpstan';
+		$this->phpunit =
+			$configuration['phpunit']
+			?? (
+				is_executable('./vendor/bin/phpunit')
+				? './vendor/bin/phpunit'
+				: false
+			);
+	}
+};
 
 $output = [];
 $return = 0;
@@ -31,68 +60,82 @@ exec(
 );
 
 $output = [];
-$return = 0;
 $returns = [];
 
-$phpstan_path =
-	'vendor'
-	. DIRECTORY_SEPARATOR
-	. 'bin'
-	. DIRECTORY_SEPARATOR
-	. 'phpstan';
-//$run_phpstan = file_exists($phpstan_path);
-
-$phpUnitPath =
-	'vendor'
-	. DIRECTORY_SEPARATOR
-	. 'bin'
-	. DIRECTORY_SEPARATOR
-	. 'phpunit';
-//$runPhpUnit = file_exists($phpUnitPath);
-
 foreach ($files as $file) {
+
+	$return = 0;
 
 	if (strtolower(pathinfo($file, PATHINFO_EXTENSION)) !== 'php') {
 		
 		continue;
 	}
-
-	exec(
-		$nebsites_configuration->command
-		. ' '
-		. $phpstan_path
-		. ' analyse '
-		. escapeshellarg($file),
-		$output,
-		$return
-	);
 	
-	$returns[] = $return;
-// 
-// 	$phpUnitClassPath =
-// 		'tests'
-// 		. DIRECTORY_SEPARATOR
-// 		. pathinfo($file, PATHINFO_DIRNAME)
-// 		. DIRECTORY_SEPARATOR
-// 		. pathinfo($file, PATHINFO_FILENAME);
-// 	
-// 	if (
-// 		$runPhpUnit
-// 		&& file_exists($phpUnitClassPath)
-// 	) {
-// 		
-// 		exec(
-// 			$phpUnitPath
-// 			. ' '
-// 			. $phpUnitClassPath
-// 			. DIRECTORY_SEPARATOR
-// 			. '*',
-// 			$output,
-// 			$return
-// 		);
-// 
-// 		$returns[] = $return;
-// 	}
+	if ($nebsites->phplint !== false) {
+		
+		$output[] = PHP_EOL;
+		$output[] = '# Executing PHP Lint';
+		
+		exec(
+			'cat '
+			. $file
+			. ' | '
+			. $nebsites->phplint,
+			$output,
+			$return
+		);
+		
+		$returns[] = $return;
+		
+		if ($return !== 0) {
+			
+			continue;
+		}
+	}
+
+	if ($nebsites->phpstan !== false) {
+		
+		$output[] = PHP_EOL;
+		$output[] = '# Executing PHPStan';
+		
+		exec(
+			$nebsites->phpstan
+			. ' analyse '
+			. escapeshellarg($file),
+			$output,
+			$return
+		);
+		
+		$returns[] = $return;
+	}
+	
+	if ($nebsites->phpunit !== false) {
+		
+		$test_path =
+		'tests'
+		. DIRECTORY_SEPARATOR
+		. pathinfo($file, PATHINFO_DIRNAME)
+		. DIRECTORY_SEPARATOR
+		. pathinfo($file, PATHINFO_FILENAME);
+
+		if (file_exists($phpUnitClassPath)) {
+			
+			$output[] = PHP_EOL;
+			$output[] = '# Executing PHPUnit';
+			
+			exec(
+				$nebsites->phpunit
+				. ' '
+				. $phpUnitClassPath
+				. DIRECTORY_SEPARATOR
+				. '*',
+				$output,
+				$return
+			);
+	
+			$returns[] = $return;
+		}
+	}
 }
 
 echo implode(PHP_EOL, $output);
