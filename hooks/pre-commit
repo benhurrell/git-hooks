@@ -137,6 +137,7 @@ foreach ($diff_index as $item) {
 			
 			$output[] = '';
 			$output[] = '# Executing PHPUnit';
+			$output[] = '## Running tests in ' . $test_path;
 			
 			exec(
 				$nebsites->phpunit
