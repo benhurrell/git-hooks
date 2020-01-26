@@ -1,4 +1,34 @@
 #!/usr/bin/php
 <?php
 
-file_put_contents('~/Test.txt', getcwd());
+$nebsites_path = 'nebsites.json';
+
+if (
+	is_file($nebsites_path)
+	&& is_readable($nebsites_path)
+) {
+
+	$configuration = json_decode(file_get_contents($nebsites_path), true);
+}
+
+list($replace, $with) =
+	($configuration['filter'] ?? 'tabspace') === 'tabtab'
+	? ['	', '    ']
+	: ['    ', '	'];
+
+while (($line = fgets(STDIN)) !== false) {
+
+	$content = ltrim($line);
+	$indentation = str_replace($content, '', $line);
+	
+	echo
+		rtrim(
+			str_replace(
+				$replace,
+				$with,
+				$indentation
+			)
+			. $content
+		)
+		. PHP_EOL;
+}
