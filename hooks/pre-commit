@@ -79,7 +79,16 @@ foreach ($diff_index as $item) {
 
 	if (strtolower(pathinfo($file, PATHINFO_EXTENSION)) !== 'php') {
 		
-		continue;
+		$file_handle = fopen($file, 'r');
+		$line_1 = trim(fgets($file_handle));
+		
+		if (
+			mb_substr($line_1, 0, 2) !== '#!'
+			|| mb_substr($line_1, -3) !== 'php'
+		) {
+		
+			continue;
+		}
 	}
 	
 	$output[] = PHP_EOL;
