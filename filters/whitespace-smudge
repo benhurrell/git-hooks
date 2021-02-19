@@ -1,20 +1,8 @@
 #!/usr/bin/php
 <?php
 
-$nebsites_path = 'nebsites.json';
-
-if (
-	is_file($nebsites_path)
-	&& is_readable($nebsites_path)
-) {
-
-	$configuration = json_decode(file_get_contents($nebsites_path), true);
-}
-
-list($replace, $with) =
-	($configuration['filter'] ?? 'tabspace') === 'tabtab'
-	? ['	', '    ']
-	: ['    ', '	'];
+$replace = '    ';
+$with = '	';
 
 while (($line = fgets(STDIN)) !== false) {
 
